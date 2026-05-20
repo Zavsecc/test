@@ -1,0 +1,58 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.20;
+
+/*
+    Простой swap-контракт:
+    - пользователь отправляет ETH
+    - контракт отправляет токены ERC20
+    - владелец может менять курс
+*/
+
+interface IERC20 {
+    function transfer(address to, uint256 amount) external returns (bool);
+    function balanceOf(address account) external view returns (uint256);
+}
+
+contract SimpleSwap {
+
+    address public owner;
+    IERC20 public token;
+
+    // сколько токенов за 1 ETH
+    uint256 public rate = 1000;
+
+    constructor(address _token) {
+        owner = msg.sender;
+        token = IERC20(_token);
+    }
+
+    modifier onlyOwner() {
+        require(msg.sender == owner, "Not owner");
+        _;
+    }
+
+    // покупка токенов за ETH
+    function swap() external payable {
+        require(msg.value > 0, "Send ETH");
+
+        uint256 tokenAmount = msg.value * rate;
+
+        require(
+            token.balanceOf(address(this)) >= tokenAmount,
+            "Not enough liquidity"
+        );
+
+        bool success = token.transfer(msg.sender, tokenAmount);
+        require(success, "Transfer failed");
+    }
+
+    // изменение курса
+    function setRate(uint256 newRate) external onlyOwner {
+        rate = newRate;
+    }
+
+    // вывод ETH владельцем
+    function withdrawETH() external onlyOwner {
+        payable(owner).transfer(address(this).balance);
+    }
+}
